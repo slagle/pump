@@ -1,0 +1,83 @@
+heat_template_version: newton
+
+parameters:
+
+  flavor:
+    type: string
+    default: m1.large
+
+  image:
+    type: string
+    default: CentOS-7-x86_64-GenericCloud-1703
+
+  private_net:
+    type: string
+    default: private
+
+  public_net:
+    type: string
+    default: 38.145.32.0/22
+
+  key_name:
+    type: string
+    default: jslagle-rdo-cloud
+
+  count:
+    type: number
+    default: 2
+
+resources:
+
+  security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: ping_and_ssh_security_group
+      description: Ping and SSH
+      rules:
+      - protocol: icmp
+      - protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+
+  user_data_script:
+    type: OS::Heat::Value
+    properties:
+      type: string
+      value: |
+        #!/bin/bash
+        rpm -q git || yum -y install git
+        git clone https://git.openstack.org/openstack-infra/tripleo-ci
+        export HOME=/root
+        tripleo-ci/scripts/tripleo.sh --repo-setup
+        yum -y install python-heat-agent*
+        rm -f /etc/yum.repos.d/delorean*
+
+  floating_ips:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: {get_param: count}
+      resource_def:
+        type: OS::Neutron::FloatingIP
+        properties:
+          floating_network: {get_param: public_net}
+
+  servers:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: {get_param: count}
+      resource_def:
+        type: OS::Nova::Server
+        properties:
+          flavor: {get_param: flavor}
+          image: {get_param: image}
+          key_name: {get_param: key_name}
+          networks:
+            - network: {get_param: private_net}
+              subnet: private_subnet
+          security_groups:
+            - "default"
+            - {get_resource: security_group}
+          name: pump-server-%index%
+          user_data_format: SOFTWARE_CONFIG
+          user_data: {get_attr: [user_data_script, value]}
+          software_config_transport: POLL_SERVER_HEAT

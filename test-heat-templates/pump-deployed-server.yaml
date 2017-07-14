@@ -1,0 +1,48 @@
+heat_template_version: newton
+
+resources:
+
+  server0:
+    type: OS::Heat::DeployedServer
+    properties:
+      name: server0
+      software_config_transport: POLL_TEMP_URL
+
+  server1:
+    type: OS::Heat::DeployedServer
+    properties:
+      name: server1
+      software_config_transport: POLL_TEMP_URL
+
+  config:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      config: |
+        #!/bin/bash
+        echo $step
+      inputs:
+        - name: step
+          default: 0
+          type: string
+
+  deployment_step0:
+    type: OS::Heat::SoftwareDeploymentGroup
+    properties:
+      config: {get_resource: config}
+      servers:
+        0: {get_resource: server0}
+        1: {get_resource: server1}
+      input_values:
+        step: "0"
+
+  deployment_step1:
+    type: OS::Heat::SoftwareDeploymentGroup
+    depends_on: deployment_step0
+    properties:
+      config: {get_resource: config}
+      servers:
+        0: {get_resource: server0}
+        1: {get_resource: server1}
+      input_values:
+        step: "1"

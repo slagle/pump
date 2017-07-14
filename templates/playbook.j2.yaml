@@ -1,0 +1,13 @@
+{% for step in steps %}
+- name: Deployment step {{ step }}
+  hosts:
+{% for server in servers.values() %}
+    - {{ server.name }}
+{% endfor %}
+  roles:
+{% for server in servers.values() %}
+    - role: roles/{{ server.name }}-{{ server.id }}
+      step: {{ step }}
+      when: "ansible_nodename == '{{ server.name }}'"
+{% endfor %}
+{% endfor %}
