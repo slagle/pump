@@ -1,0 +1,66 @@
+{% for deployment in deployments %}
+- name: "{{ '{{' }} inventory_hostname {{ '}}' }} - Set deployment fact {{ deployment.get('name') }}"
+  set_fact:
+    deployment: "{{ '{{' }} lookup('file', 'deployments/{{ deployment.get('resource_path') }}.json') | from_json {{ '}}' }}"
+  when: "step == {{ step }}"
+  tags:
+    - step{{ step }}
+    - {{ server_name }}
+    - {{ deployment.get('name') }}
+    - {{ deployment.get('deployment_id') }}
+
+- name: "{{ '{{' }} inventory_hostname {{ '}}' }} - Render deployment file for {{ deployment.get('name') }}"
+  template:
+    src: heat-config
+    dest: /var/lib/heat-config/pump/{{ deployment.get('name') ~ '-' ~ deployment.get('id') }}
+  become: true
+  when: "step == {{ step }}"
+  tags:
+    - step{{ step }}
+    - {{ server_name }}
+    - {{ deployment.get('name') }}
+    - {{ deployment.get('deployment_id') }}
+
+- name: "{{ '{{' }} inventory_hostname {{ '}}' }} - Force remove deployed file for {{ deployment.get('name') }}"
+  file:
+    path: /var/lib/heat-config/deployed/{{ deployment.get('id') }}.json
+    state: absent
+  become: true
+  when: force | bool
+  tags:
+    - step{{ step }}
+    - {{ server_name }}
+    - {{ deployment.get('name') }}
+    - {{ deployment.get('deployment_id') }}
+
+- name: "{{ '{{' }} inventory_hostname {{ '}}' }} - Run deployment {{ deployment.get('name') }}"
+  shell: |
+    /usr/libexec/os-refresh-config/configure.d/55-heat-config
+    exit $(jq .deploy_status_code /var/lib/heat-config/deployed/{{ deployment.get('id') }}.notify.json)
+  become: true
+  environment:
+    HEAT_SHELL_CONFIG: /var/lib/heat-config/pump/{{ deployment.get('name') ~ '-' ~ deployment.get('id') }}
+  when: "step == {{ step }}"
+  tags:
+    - step{{ step }}
+    - {{ server_name }}
+    - {{ deployment.get('name') }}
+    - {{ deployment.get('deployment_id') }}
+  register: deployment_result
+  ignore_errors: yes
+
+- name: "{{ '{{' }} inventory_hostname {{ '}}' }} - Output for {{ deployment.get('name') }}"
+  debug:
+    msg:
+      - stderr: "{{ '{{' }} deployment_result.stderr.split('\n') {{ '}}' }}"
+      - status_code: "{{ '{{' }} deployment_result.rc {{ '}}' }}"
+  when: "step == {{ step }}"
+  tags:
+    - step{{ step }}
+    - {{ server_name }}
+    - {{ deployment.get('name') }}
+    - {{ deployment.get('deployment_id') }}
+    - output
+  failed_when: deployment_result.rc != 0
+
+{% endfor %}

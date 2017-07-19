@@ -1,0 +1,7 @@
+- include: "{{ item }}"
+  name: Include step{{ step }}.yaml for {{ inventory_hostname }}
+  with_first_found:
+    - files:
+        - step{{ step }}.yaml
+      skip: true
+

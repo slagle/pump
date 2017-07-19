@@ -1,43 +1,7 @@
-- name: Create /var/lib/heat-config/pump directory
-  file:
-    path: /var/lib/heat-config/pump
-    state: directory
-  become: true
-  tags:
-    - common
+- name: Include server tasks for {{ '{{' }} inventory_hostname {{ '}}' }} step{{ '{{' }} step {{ '}}' }}
+  include: "{{ '{{' }} inventory_hostname {{ '}}' }}/step{{ '{{' }} step {{ '}}' }}.yaml"
+  with_first_found:
+    - files:
+        - "{{ '{{' }} inventory_hostname {{ '}}' }}/step{{ '{{' }} step {{ '}}' }}.yaml"
+      skip: true
 
-{% for step in steps %}
-{% for deployment in deployments[step] %}
-- name: Set deployment fact
-  set_fact:
-    deployment: "{{ '{{' }} lookup('file', 'deployments/{{ deployment.get('id') }}.json') | from_json {{ '}}' }}"
-  when: "step == {{ step }}"
-  tags:
-    - step{{ step }}
-    - {{ server_name }}
-    - {{ deployment.get('id') }}
-
-- name: Render deployment file for {{ deployment.get('id') }}
-  template:
-    src: heat-config
-    dest: /var/lib/heat-config/pump/{{ deployment.get('id') }}
-  become: true
-  when: "step == {{ step }}"
-  tags:
-    - step{{ step }}
-    - {{ server_name }}
-    - {{ deployment.get('id') }}
-
-- name: Run deployment {{ deployment.get('id') }}
-  command: /usr/libexec/os-refresh-config/configure.d/55-heat-config
-  become: true
-  environment:
-    HEAT_SHELL_CONFIG: /var/lib/heat-config/pump/{{ deployment.get('id') }}
-  when: "step == {{ step }}"
-  tags:
-    - step{{ step }}
-    - {{ server_name }}
-    - {{ deployment.get('id') }}
-
-{% endfor %}
-{% endfor %}

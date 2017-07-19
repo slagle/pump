@@ -24,11 +24,12 @@ resources:
       inputs:
         - name: step
           default: 0
-          type: string
+          type: String
 
   deployment_step0:
     type: OS::Heat::SoftwareDeploymentGroup
     properties:
+      name: deployment_step0
       config: {get_resource: config}
       servers:
         0: {get_resource: server0}
@@ -40,6 +41,7 @@ resources:
     type: OS::Heat::SoftwareDeploymentGroup
     depends_on: deployment_step0
     properties:
+      name: deployment_step1
       config: {get_resource: config}
       servers:
         0: {get_resource: server0}

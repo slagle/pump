@@ -1,13 +1,31 @@
-{% for step in steps %}
-- name: Deployment step {{ step }}
+- name: Common tasks
   hosts:
 {% for server in servers.values() %}
-    - {{ server.name }}
+    - {{ server.heat_name }}
 {% endfor %}
+  gather_facts: False
+  tasks:
+    - name: Create /var/lib/heat-config/pump directory
+      file:
+        path: /var/lib/heat-config/pump
+        state: directory
+      become: true
+      tags:
+        - common
+
+{% for step in steps %}
+{% for role in roles.keys() %}
+
+- name: {{ role }} Deployment step{{ step }}
+  hosts:
+{% for server in roles.get(role) %}
+    - {{ server.heat_name }}
+{% endfor %}
+  strategy: free
+  gather_facts: False
   roles:
-{% for server in servers.values() %}
-    - role: roles/{{ server.name }}-{{ server.id }}
+    - role: roles/{{ role }}
       step: {{ step }}
-      when: "ansible_nodename == '{{ server.name }}'"
+
 {% endfor %}
 {% endfor %}
